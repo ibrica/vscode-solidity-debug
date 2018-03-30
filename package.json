@@ -1,0 +1,134 @@
+{
+	"name": "vscode-solidity-debug",
+	"displayName": "Solidity Debug",
+	"version": "0.27.0",
+	"publisher": "ibrica",
+	"description": "Extension for debugging solidity code files",
+	"author": {
+		"name": "Ivan Britvic",
+		"email": "ivbritvic@gmail.com"
+	},
+	"license": "MIT",
+	"keywords": [
+		"multi-root ready"
+	],
+	"engines": {
+		"vscode": "^1.18.0",
+		"node": "^7.9.0"
+	},
+	"icon": "images/mock-debug-icon.png",
+	"categories": [
+		"Debuggers"
+	],
+	"private": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/..."
+	},
+	"bugs": {
+		"url": "https://github.com/.../issues"
+	},
+	"scripts": {
+		"prepublish": "tsc -p ./src",
+		"compile": "tsc -p ./src",
+		"tslint": "tslint ./src/**/*.ts",
+		"watch": "tsc -w -p ./src",
+		"test": "mocha -u tdd ./out/tests/",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"package": "vsce package",
+		"publish": "vsce publish"
+	},
+	"dependencies": {
+		"await-notify": "1.0.1",
+		"npm-run": "^4.1.2",
+		"vscode-debugadapter": "1.26.0",
+		"vscode-debugprotocol": "1.26.0",
+		"ws": "^5.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "7.0.43",
+		"@types/mocha": "2.2.45",
+		"typescript": "2.6.2",
+		"mocha": "4.0.1",
+		"vscode": "1.1.10",
+		"vscode-debugadapter-testsupport": "1.26.0",
+		"tslint": "5.8.0",
+		"vsce": "1.35.0"
+	},
+	"main": "./out/extension",
+	"activationEvents": [
+		"onDebug",
+		"onCommand:extension.getProgramName",
+		"onCommand:extension.previewHtmlRemix"
+	],
+	"contributes": {
+		"breakpoints": [
+			{
+				"language": "solidity"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "solidity",
+				"label": "Solidity",
+				"program": "./out/debugAdapter.js",
+				"runtime": "node",
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"program"
+						],
+						"properties": {
+							"program": {
+								"type": "string",
+								"description": "Absolute path to a text file.",
+								"default": "${workspaceFolder}/${command:AskForProgramName}"
+							},
+							"stopOnEntry": {
+								"type": "boolean",
+								"description": "Automatically stop after launch.",
+								"default": true
+							},
+							"trace": {
+								"type": "boolean",
+								"description": "Enable logging of the Debug Adapter Protocol.",
+								"default": true
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"type": "solidity",
+						"request": "launch",
+						"name": "Ask for file name",
+						"program": "${workspaceFolder}/${command:AskForProgramName}",
+						"stopOnEntry": true
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "Solidity Debug: Launch",
+						"description": "A new configuration for 'debugging' a user selected solidity file.",
+						"body": {
+							"type": "solidity",
+							"request": "launch",
+							"name": "Ask for file name",
+							"program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
+							"stopOnEntry": true
+						}
+					}
+				],
+				"variables": {
+					"AskForProgramName": "extension.getProgramName"
+				}
+			}
+		],
+		"commands": [
+			{
+				"command": "extension.previewHtmlRemix",
+				"title": "Solidity Debug: Start Remix debugger"
+			}
+		]
+	}
+}

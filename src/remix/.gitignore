@@ -1,0 +1,10 @@
+.vscode
+build
+node_modules
+reports
+soljson.js
+npm-debug.log*
+babelify-src
+package-lock.json
+remix
+.DS_Store
