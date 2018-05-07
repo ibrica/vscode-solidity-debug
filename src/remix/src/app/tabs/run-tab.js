@@ -408,13 +408,13 @@ function settings (container, appAPI, appEvents) {
         <div class=${css.environment}>
           ${net}
           <select id="selectExEnvOptions" onchange=${updateNetwork} class="${css.select}">
-            <option id="vm-mode" selected
+            <option id="vm-mode"
               title="Execution environment does not connect to any node, everything is local and in memory only."
               value="vm"
               name="executionContext">
               JavaScript VM
             </option>
-            <option id="web3-mode"
+            <option id="web3-mode" selected
               title="Execution environment connects to node at localhost (or via IPC if available), transactions will be sent to the network and can cause loss of money or worse!
               If this page is served via https and you access your node via http, it might not work. In this case, try cloning the repository and serving it via http."
               value="web3"

@@ -45,8 +45,9 @@ export class SolidityDebugSession extends LoggingDebugSession {
 	constructor() {
 		super("solidity-debug.txt");
 
-		// this debugger uses zero-based lines and columns
+		//Lines start at 0
 		this.setDebuggerLinesStartAt1(false);
+		// debugger uses zero-based  columns
 		this.setDebuggerColumnsStartAt1(false);
 	}
 

@@ -15,27 +15,41 @@ function Debugger (id, appAPI, editorEvent) {
   this.el.appendChild(this.debugger.render())
   this.appAPI = appAPI
   this.isActive = false
+  this.breakpointLines = [] //Remember BP positions
 
   this.breakPointManager = new remixCore.code.BreakpointManager(this.debugger, (sourceLocation) => {
+    console.log(appAPI.offsetToLineColumn(sourceLocation, sourceLocation.file, null, this.appAPI.lastCompilationResult().data))
     return appAPI.offsetToLineColumn(sourceLocation, sourceLocation.file, null, this.appAPI.lastCompilationResult().data)
   })
 
   this.debugger.setBreakpointManager(this.breakPointManager)
 
   this.breakPointManager.event.register('breakpointHit', (sourceLocation) => {
-
+    console.log('breakpointHit: ' + sourceLocation)
+    editorEvent.trigger('breakpointHit',[sourceLocation])
   })
 
   var self = this
 
+  /* VS Code doesn't remove single BPs
   editorEvent.register('breakpointCleared', (fileName, row) => {
-    this.breakPointManager.remove({fileName: fileName, row: row})
+   // this.breakPointManager.remove({fileName: fileName, row: row})
+  })
+  */
+
+  editorEvent.register('allBreakpointsCleared', (fileName) => {
+    //Clear all
+    for (let row of this.breakpointLines){
+      this.breakPointManager.remove({fileName: fileName, row: row})
+    }
+    //Now reset
+    this.breakpointLines = []
   })
 
   editorEvent.register('breakpointAdded', (fileName, row) => {
+    this.breakpointLines.push(row)
     this.breakPointManager.add({fileName: fileName, row: row})
   })
-
 
   executionContext.event.register('contextChanged', this, function (context) {
     self.switchProvider(context)
@@ -46,31 +60,33 @@ function Debugger (id, appAPI, editorEvent) {
   })
 
   this.debugger.event.register('traceUnloaded', this, function () {
-    self.appAPI.currentSourceLocation(null)
-    self.isActive = false
+    //self.appAPI.currentSourceLocation(null)
+     self.isActive = false
   })
 
-  /*
-  // unload if a file has changed (but not if tabs were switched)
+  // unload if a file has changed
   editorEvent.register('contentChanged', function () {
     self.debugger.unLoad()
   })
-  */
 
-  /*
   // register selected code item, highlight the corresponding source location
   this.debugger.codeManager.event.register('changed', this, function (code, address, index) {
     if (self.appAPI.lastCompilationResult()) {
       this.debugger.callTree.sourceLocationTracker.getSourceLocationFromInstructionIndex(address, index, self.appAPI.lastCompilationResult().data.contracts, function (error, rawLocation) {
         if (!error) {
           var lineColumnPos = self.appAPI.offsetToLineColumn(rawLocation, rawLocation.file)
-          self.appAPI.currentSourceLocation(lineColumnPos, rawLocation)
+          //self.appAPI.currentSourceLocation(lineColumnPos, rawLocation)
+          editorEvent.trigger('stopped',[lineColumnPos, rawLocation] )
+          console.log('stopped')
+          console.log(lineColumnPos)
         } else {
-          self.appAPI.currentSourceLocation(null)
+          //self.appAPI.currentSourceLocation(null)
+          editorEvent.trigger('end')
+          console.error(error)
         }
       })
     }
-  }) */
+  })
 }
 
 

@@ -20,7 +20,6 @@ export class Runtime extends EventEmitter {
 		return this._sourceFile;
 	}
 
-
 	//Websocket server
 	private server:WebSocketServer;
 
@@ -32,6 +31,9 @@ export class Runtime extends EventEmitter {
 
 	// This is the next line that will be 'executed'
 	private _currentLine = 0;
+
+	//WebSocket to remix
+	private _ws;
 
 	// maps from sourceFile to array of breakpoints
 	private _breakPoints = new Map<string, SolidityBreakpoint[]>();
@@ -52,7 +54,7 @@ export class Runtime extends EventEmitter {
 		await runtime.startServer();
 
 		return runtime;
- };
+	};
 
 
 	/**
@@ -69,11 +71,11 @@ export class Runtime extends EventEmitter {
 			this._currentLine = 0;
 			this.sendEvent('stopOnEntry');
 		}
-
 	}
 
 	/*
 	 * Set breakpoint in file with given line.
+	 * VSCode on every change sends cleared event and then breakpoints one by one
 	 */
 	public setBreakPoint(path: string, line: number) : SolidityBreakpoint {
 
@@ -100,6 +102,8 @@ export class Runtime extends EventEmitter {
 			if (index >= 0) {
 				const bp = bps[index];
 				bps.splice(index, 1);
+				//Send to remix debugger
+				this.sendRemixEvent('breakpointCleared', [this._sourceFile, line]);
 				return bp;
 			}
 		}
@@ -110,8 +114,12 @@ export class Runtime extends EventEmitter {
 	 * Clear all breakpoints for file.
 	 */
 	public clearBreakpoints(path: string): void {
+		//Send to remix debugger
+		this.sendRemixEvent('allBreakpointsCleared', [this._sourceFile]);
 		this._breakPoints.delete(path);
 	}
+
+
 
 
 	/**
@@ -158,22 +166,39 @@ export class Runtime extends EventEmitter {
 	private verifyBreakpoints(path: string) : void {
 		let bps = this._breakPoints.get(path);
 		if (bps) {
-			this.loadSource(path);
+			// this.loadSource(path); assuming for now source is unchanged
+			//TODO: Check why on first run it gets only first breakpoint
 			bps.forEach(bp => {
 				if (!bp.verified && bp.line < this._sourceLines.length) {
 					const srcLine = this._sourceLines[bp.line].trim();
-
-					// if a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
-					if (srcLine.length === 0 || srcLine.indexOf('+') === 0) {
+					// if a line is empty or starts with '+' or '//' we don't allow to set a breakpoint but move the breakpoint down
+					if (srcLine.length === 0 || srcLine.indexOf('//') === 0) {
 						bp.line++;
 					}
-					// if a line starts with '-' we don't allow to set a breakpoint but move the breakpoint up
-					if (srcLine.indexOf('') === 0) {
+					// if a line starts with '/*' we don't allow to set a breakpoint but move the breakpoint up
+					if (srcLine.indexOf('/*') === 0) {
 						bp.line--;
 					}
-
 					bp.verified = true;
+					this.sendRemixEvent('breakpointAdded', [ this._sourceFile, bp.line ]);
 					this.sendEvent('breakpointValidated', bp);
+				}
+			});
+		}
+	}
+
+	/**
+	 * Send all breakpoints for file, one by one
+	 */
+	private sendBreakpoints(path: string): void {
+		//send clear all before sending bps
+		this.sendRemixEvent('allBreakpointsCleared', [this._sourceFile]);
+		let bps = this._breakPoints.get(path);
+		if (bps) {
+			// this.loadSource(path); assuming for now source is unchanged
+			bps.forEach(bp => {
+				if (bp.verified && bp.line < this._sourceLines.length) {
+					this.sendRemixEvent('breakpointAdded', [ this._sourceFile, bp.line ]);
 				}
 			});
 		}
@@ -182,7 +207,7 @@ export class Runtime extends EventEmitter {
 	/**
 	 * Start websocket server
 	 */
-	public startServer(): WebSocketServer{
+	private startServer(): WebSocketServer{
 		return new Promise( resolve  => {
 			// authentication is done on the WebSocket, so any user on the local host
 			// can connect to it.
@@ -194,38 +219,63 @@ export class Runtime extends EventEmitter {
 		});
 	}
 
-
- /**
-  * Configure Websocket conection
-  */
-private onServerListening() {
-	this.server.on('connection', ws => {
-		// Message must always be a string, never a Buffer.
-		ws.on('message', message => {
-			if (typeof message === 'string') {
-				console.log(`Message received: ${message}`);
-				try {
-					let o = JSON.parse(message);
-					if (o && typeof o === "object" && o.event) {
-						// it's event from debugger, do something!
-						switch(o.event){
-							case 'sourceRequest': //Send debugger a source file
-								let response = {
-									event: 'sourceResponse',
-									data: [this._sourceFile, this._sourceText]
-								}
-								ws.send(JSON.stringify(response));
-								break;
+	/**
+	 * Configure Websocket conection
+	 */
+	private onServerListening() {
+		this.server.on('connection', ws => {
+			this._ws = ws; //Now set ws
+			// Message must always be a string, never a Buffer.
+			ws.on('message', message => {
+				if (typeof message === 'string') {
+					console.log(`Message received: ${message}`);
+					try {
+						let o = JSON.parse(message);
+						if (o && typeof o === "object" && o.event) {
+							// it's event from debugger, do something!
+							switch(o.event){
+								case 'sourceRequest': //Send debugger a source file
+									this.sendRemixEvent('sourceResponse',[ this._sourceFile, this._sourceText]);
+									//Now send breakpoints
+									this.sendBreakpoints(this._sourceFile);
+									break;
+								case 'breakpointHit':
+									this.sendEvent('stopOnBreakpoint');
+									break;
+								case 'stopped':
+									let colon;
+									[colon, this._currentLine] = o.data;
+									this.sendEvent('stopOnStep');
+									break;
+								case 'end': //Do not stop debugging just get back to beggining
+									//this.sendEvent('end');
+									this._currentLine = 0;
+									this.sendEvent('stopOnEntry');
+									break;
+							}
 						}
 					}
+					catch (e) {
+						//Regular message, already logged
+					}
+				} else {
+					console.error(`Unhandled message type: ${typeof message}`);
 				}
-				catch (e) {
-					//Regular message, already logged
-				}
-			} else {
-				console.error(`Unhandled message type: ${typeof message}`);
-			}
+			});
 		});
-	});
-}
+	}
+
+	/**
+	 * Send event to remix over websocket
+	 */
+	private sendRemixEvent( event :string, data ? :Array<any> ){
+		let response = {
+			event,
+			data
+		}
+		if (this._ws){ //Check if connection is set
+			this._ws.send(JSON.stringify(response));
+		}
+
+	}
 }

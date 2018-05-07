@@ -95,16 +95,45 @@ class App {
       ws.send('Connection established!')
     }
     self.ws = ws;
+  /*
+    Events:
+    sourceRequest
+    sourceResponse
+    breakpointCleared
+    allBreakpointsCleared
+    breakpointAdded
+    breakpointHit
+    stopped
+    end
+  */
 
     //Ask editor to send me source
     self.editorEvent.register('sourceRequest', _ => {
       self.ws.send(JSON.stringify({event: 'sourceRequest'}))
     })
-    //Ask editor to send me source
+
+    //Received source content
     self.editorEvent.register('sourceResponse', (target, content) => {
       self.target = target
       self.content = content
       self.runCompiler()
+      //Bug from  browser-solidity, why do I have to run it twice
+      setTimeout( self.runCompiler, 2000)
+    })
+
+    //Stopped at breakpoint
+    self.editorEvent.register('breakpointHit', sourceLocation => {
+      self.ws.send(JSON.stringify({event:'breakpointHit', data: [sourceLocation]}))
+    })
+
+    //Stopped (debugger step)
+    self.editorEvent.register('stopped', (lineColumnPos, rawLocation)  => {
+      self.ws.send(JSON.stringify({event:'stopped', data: [lineColumnPos, rawLocation]}))
+    })
+
+    //Debug ended
+    self.editorEvent.register('end', _ => {
+      self.ws.send(JSON.stringify({event: 'end'}))
     })
   }
 
@@ -477,11 +506,17 @@ function run () {
   }
 
   function getContractToCompile(){
-    let target = "browser/contract.sol"
+    let target = self.target
     let content = self.content
-
-    /* This is for test
-    target = 'Ballot.sol';
+    if(self.target){
+      target = target.trim()
+      content = content.trim()
+    }
+    /*
+    console.log(target)
+    console.log(content)
+    */
+    /* This is for test, ballot contract
     content = `
     pragma solidity ^0.4.0;
     contract Ballot {
@@ -549,7 +584,6 @@ function run () {
         }
     }`
     */
-
     return  {target, content}
   }
 }

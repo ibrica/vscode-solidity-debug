@@ -63,13 +63,10 @@ export function activate(context: vscode.ExtensionContext) {
 		  textDocumentContentProvider)
 	);
 
-
 	//register a configuration provider for solidity debug
 	const provider = new SolidityConfigurationProvider();
 	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('solidity', provider));
 	context.subscriptions.push(provider);
-
-
 }
 
 export function deactivate() {
@@ -86,7 +83,6 @@ class SolidityConfigurationProvider implements vscode.DebugConfigurationProvider
 	 * add all missing attributes to the debug configuration.
 	 */
 	resolveDebugConfiguration(folder: WorkspaceFolder | undefined, config: DebugConfiguration, token?: CancellationToken): ProviderResult<DebugConfiguration> {
-
 
 		// if launch.json is missing or empty
 		if (!config.type && !config.request && !config.name) {
