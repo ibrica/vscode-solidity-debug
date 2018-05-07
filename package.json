@@ -40,6 +40,7 @@
 	},
 	"dependencies": {
 		"await-notify": "1.0.1",
+		"hoek": "^4.2.1",
 		"npm-run": "^4.1.2",
 		"vscode-debugadapter": "1.26.0",
 		"vscode-debugprotocol": "1.26.0",
