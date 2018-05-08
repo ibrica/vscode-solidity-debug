@@ -424,8 +424,8 @@ function run () {
   var transactionDebugger = new Debugger('#debugger', debugAPI, this.editorEvent)
   transactionDebugger.addProvider('vm', executionContext.vm())
   transactionDebugger.addProvider('web3', executionContext.internalWeb3())
-  transactionDebugger.switchProvider(executionContext.getProvider())
-
+  //transactionDebugger.switchProvider(executionContext.getProvider()) this creates problem, hardcode vm for now
+  transactionDebugger.switchProvider('vm');
 
   var txLogger = new TxLogger({
     api: {

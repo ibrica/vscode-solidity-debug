@@ -25,7 +25,6 @@ function Debugger (id, appAPI, editorEvent) {
   this.debugger.setBreakpointManager(this.breakPointManager)
 
   this.breakPointManager.event.register('breakpointHit', (sourceLocation) => {
-    console.log('breakpointHit: ' + sourceLocation)
     editorEvent.trigger('breakpointHit',[sourceLocation])
   })
 
@@ -77,7 +76,6 @@ function Debugger (id, appAPI, editorEvent) {
           var lineColumnPos = self.appAPI.offsetToLineColumn(rawLocation, rawLocation.file)
           //self.appAPI.currentSourceLocation(lineColumnPos, rawLocation)
           editorEvent.trigger('stopped',[lineColumnPos, rawLocation] )
-          console.log('stopped')
           console.log(lineColumnPos)
         } else {
           //self.appAPI.currentSourceLocation(null)

@@ -5,7 +5,7 @@
   "description": "Minimalistic browser-based Solidity IDE",
   "devDependencies": {
     "async": "^2.1.2",
-    "babel-eslint": "^7.2.3",
+    "babel-eslint": "^7.1.1",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-plugin-yo-yoify": "^0.3.3",
     "babel-polyfill": "^6.22.0",
@@ -48,7 +48,7 @@
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
     "selenium-standalone": "^6.0.1",
-    "standard": "^8.6.0",
+    "standard": "^8.5.0",
     "swarmgw": "^0.2.0",
     "tape": "^4.5.1",
     "uglify-js": "^2.8.16",
@@ -76,6 +76,7 @@
   "standard": {
     "ignore": [
       "build/",
+      "src/app/editor/mode-solidity.js",
       "soljson.js"
     ],
     "parser": "babel-eslint"
@@ -163,10 +164,9 @@
     "selenium-install": "selenium-standalone install",
     "serve": "execr --silent http-server .",
     "sourcemap": "exorcist --root ../ build/app.js.map > build/app.js",
-    "start": "npm-run-all -lpr serve watch onchange",
+    "start": "npm-run-all -lpr serve watch onchange remixd",
     "test": "npm run csslint; standard && node test/index.js",
     "test-browser": "npm-run-all -lpr selenium downloadsolc make-mock-compiler serve browsertest",
     "watch": "watchify src/index.js -dv -p browserify-reload -o build/app.js"
-  },
-  "dependencies": {}
+  }
 }
