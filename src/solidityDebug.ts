@@ -2,7 +2,7 @@ import {
 	Logger, logger,
 	LoggingDebugSession,
 	InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent,
-	Thread, Source, Breakpoint
+	Thread, Source, Breakpoint, StackFrame
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { basename } from 'path';
@@ -59,12 +59,14 @@ export class SolidityDebugSession extends LoggingDebugSession {
 	protected async initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments) {
 		this._runtime = await Runtime.CreateAsync();
 
+
 		// setup event handlers
 		this._runtime.on('stopOnEntry', () => {
 			this.sendEvent(new StoppedEvent('entry', SolidityDebugSession.THREAD_ID));
 		});
 		this._runtime.on('stopOnStep', () => {
-			this.sendEvent(new StoppedEvent('step', SolidityDebugSession.THREAD_ID));
+			//Hack, call  step request to move editor highlight
+			this.dispatchRequest({command:"next", seq:14,type:"request", arguments:{threadId:SolidityDebugSession.THREAD_ID}});
 		});
 		this._runtime.on('stopOnBreakpoint', () => {
 			this.sendEvent(new StoppedEvent('breakpoint', SolidityDebugSession.THREAD_ID));
@@ -188,7 +190,7 @@ export class SolidityDebugSession extends LoggingDebugSession {
 	protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void{
 		//Stop runtime
 		if (this._runtime){
-			this._runtime.Stop();
+			//this._runtime.Stop(); //TODO: Switch on after testing
 		}
 
 		//vscode.commands.executeCommand('workbench.action.focusRightEditor'); //No, it doesnt work, need a group command
@@ -201,6 +203,17 @@ export class SolidityDebugSession extends LoggingDebugSession {
 
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
 
+		const startFrame = typeof args.startFrame === 'number' ? args.startFrame : 0;
+		const maxLevels = typeof args.levels === 'number' ? args.levels : 1000;
+		const endFrame = startFrame + maxLevels;
+
+		const stk = this._runtime.stack(startFrame, endFrame);
+
+		response.body = {
+			stackFrames: stk.frames.map(f => new StackFrame(f.index, f.name, this.createSource(f.file), this.convertDebuggerLineToClient(f.line))),
+			totalFrames: stk.count
+
+		};
 		this.sendResponse(response);
 	}
 
@@ -221,6 +234,7 @@ export class SolidityDebugSession extends LoggingDebugSession {
 	}
 
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
+		this.sendEvent(new StoppedEvent('step', SolidityDebugSession.THREAD_ID));
 		this.sendResponse(response);
 	}
 
@@ -236,7 +250,8 @@ export class SolidityDebugSession extends LoggingDebugSession {
 	//---- helpers
 
 	private createSource(filePath: string): Source {
-		return new Source(basename(filePath), this.convertDebuggerPathToClient(filePath), undefined, undefined, 'mock-adapter-data');
+		let source = new Source(basename(filePath), this.convertDebuggerPathToClient(filePath), undefined, undefined, 'mock-adapter-data')
+		return source;
 	}
 
 	/**

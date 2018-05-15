@@ -123,12 +123,12 @@ class App {
 
     //Stopped at breakpoint
     self.editorEvent.register('breakpointHit', sourceLocation => {
-      self.ws.send(JSON.stringify({event:'breakpointHit', data: [sourceLocation]}))
+      self.ws.send(JSON.stringify({event:'breakpointHit'})) //VS code don't need line
     })
 
     //Stopped (debugger step)
     self.editorEvent.register('stopped', (lineColumnPos, rawLocation)  => {
-      self.ws.send(JSON.stringify({event:'stopped', data: [lineColumnPos, rawLocation]}))
+      self.ws.send(JSON.stringify({event:'stopped', data: [lineColumnPos.start.line, lineColumnPos.end.line]}))
     })
 
     //Debug ended

@@ -37,11 +37,13 @@ export class Runtime extends EventEmitter {
 
 	// maps from sourceFile to array of breakpoints
 	private _breakPoints = new Map<string, SolidityBreakpoint[]>();
+	//Lines of breakpoints
+	private _breakpointLines = new Array<number>();
 
 	//  id of the event and of the breakpoint.
 	private _breakpointId = 1;
 
-	private constructor() {
+	constructor() {
 		super();
 	}
 
@@ -119,8 +121,49 @@ export class Runtime extends EventEmitter {
 		this._breakPoints.delete(path);
 	}
 
+	/**
+	 * Return stack, no use for now, just copy text
+	 * @param startFrame
+	 * @param endFrame
+	 */
+	public stack(startFrame: number, endFrame: number): any {
 
+		const words = this._sourceLines[this._currentLine].trim().split(/\s+/);
 
+		const frames = new Array<any>();
+		// every word of the current line becomes a stack frame.
+		for (let i = startFrame; i < Math.min(endFrame, words.length); i++) {
+			const name = words[i];	// use a word of the line as the stackframe name
+			frames.push({
+				index: i,
+				name: `${name}(${i})`,
+				file: this._sourceFile,
+				line: this._currentLine
+			});
+		}
+		return {
+			frames: frames,
+			count: words.length
+		};
+	}
+
+	/**
+	 * Debugger stpped one line
+	 * @param stopLine line on which debugger stopped
+	 */
+	public stopped(stopLine:number){
+		//let delta:number = stopLine - this._currentLine;
+		//Position on stop line
+		this._currentLine = stopLine;
+
+		//Is stopped event on Breakpoint
+		if  (this._breakpointLines.indexOf(stopLine) !== -1){
+			this.sendEvent('stopBreakpoint');
+			return true;
+		} else{
+			this.sendEvent('stopOnStep');
+		}
+	}
 
 	/**
 	 * Fire event for debug adapter
@@ -179,6 +222,7 @@ export class Runtime extends EventEmitter {
 					if (srcLine.indexOf('/*') === 0) {
 						bp.line--;
 					}
+					this._breakpointLines.push(bp.line);
 					bp.verified = true;
 					this.sendRemixEvent('breakpointAdded', [ this._sourceFile, bp.line ]);
 					this.sendEvent('breakpointValidated', bp);
@@ -203,6 +247,7 @@ export class Runtime extends EventEmitter {
 			});
 		}
 	}
+
 
 	/**
 	 * Start websocket server
@@ -243,9 +288,9 @@ export class Runtime extends EventEmitter {
 									this.sendEvent('stopOnBreakpoint');
 									break;
 								case 'stopped':
-									let colon;
-									[colon, this._currentLine] = o.data;
-									this.sendEvent('stopOnStep');
+									let stopLine, endLine; //No need for now
+									[stopLine, endLine] = o.data;
+									this.stopped(stopLine);
 									break;
 								case 'end': //Do not stop debugging just get back to beggining
 									//this.sendEvent('end');
